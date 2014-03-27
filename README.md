@@ -1,4 +1,4 @@
 fup
 ===
 
-show per-friends updates on 500px
+test: show per-friends updates on 500px
