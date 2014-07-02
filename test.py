@@ -34,8 +34,17 @@ def get_last_upload_photo (user):
                   reverse=True, key=lambda p: get_time(p.created_at))[0]
 
 def get_sorted_data (user):
-    return sorted([(u, u.photos[0].created_at) for u in user.friends],
-                  reverse=True, key=operator.itemgetter(1))
+    #return sorted([(u, u.photos[0].created_at) for u in user.friends],
+    #return sorted([(u, u.photos.first().created_at) for u in user.friends],
+    #return sorted([(u, list(u.photos)[0].created_at) for u in user.friends],
+    #              reverse=True, key=operator.itemgetter(1))
+    def _g(users):
+        f = []
+        for u in users:
+            try:f.append([u, u.photos[0].created_at])
+            except IndexError: f.append([u, "???"])
+        return f
+    return sorted(_g(user.friends), reverse=True, key=operator.itemgetter(1))
 
 def _get_sorted_data (user): # like get_sorted_data but slower :-D
     return sorted([(u, get_last_upload_photo(u).created_at) for u in user.friends],
@@ -75,7 +84,7 @@ if __name__ == '__main__':
                            _a.get_verify_url())
     username = sys.argv[1].decode('utf-8')
     me = User(username=username)
-    sorted_uploads = get_sorted_data(me)
+    sorted_uploads = list(get_sorted_data(me))
     print_info(sorted_uploads)
         
 
