@@ -1,5 +1,6 @@
 #coding: utf-8
 
+import argparse
 import operator
 import re
 import sys
@@ -8,6 +9,7 @@ import urlparse
 import fhp.api.five_hundred_px as _fh
 import fhp.helpers.authentication as _a
 from fhp.models.user import User
+from fhp.models.photo import Photo
 
 _TREG = re.compile('^(\d+)-(\d+)-(\d+).*?(\d+):(\d+):(\d+).*')
 _URL = 'http://500px.com/'
@@ -34,10 +36,6 @@ def get_last_upload_photo (user):
                   reverse=True, key=lambda p: get_time(p.created_at))[0]
 
 def get_sorted_data (user):
-    #return sorted([(u, u.photos[0].created_at) for u in user.friends],
-    #return sorted([(u, u.photos.first().created_at) for u in user.friends],
-    #return sorted([(u, list(u.photos)[0].created_at) for u in user.friends],
-    #              reverse=True, key=operator.itemgetter(1))
     def _g(users):
         f = []
         for u in users:
@@ -46,7 +44,7 @@ def get_sorted_data (user):
         return f
     return sorted(_g(user.friends), reverse=True, key=operator.itemgetter(1))
 
-def _get_sorted_data (user): # like get_sorted_data but slower :-D
+def _get_sorted_data (user): # like get_sorted_data but slower :-(
     return sorted([(u, get_last_upload_photo(u).created_at) for u in user.friends],
                   reverse=True, key=operator.itemgetter(1))
 
@@ -55,14 +53,14 @@ def format_info_html (data):
     for user, date in data:
         yield '<a href="%s">%s</a> (%s)<p>' % (
             urlparse.urljoin(_URL, user.username), user.fullname.strip(), date)
-            #time.strftime('%Y-%m-%d %H:%M:%S', get_time(date))) # last for debug only
+            #time.strftime('%Y-%m-%d %H:%M:%S', get_time(date))) #DEBUG
     yield _HTML_END
 
 def format_info_txt (data):
     for user, date in data:
         yield '%s (%s, %s)' % (
             urlparse.urljoin(_URL, user.username), user.fullname.strip(), date)
-            #time.strftime('%Y-%m-%d %H:%M:%S', get_time(date))) # last for debug only
+            #time.strftime('%Y-%m-%d %H:%M:%S', get_time(date))) #DEBUG
 
 def print_info(data, fmt=FMT_HTML):
     if fmt == FMT_HTML:
@@ -77,49 +75,39 @@ def print_info(data, fmt=FMT_HTML):
         except UnicodeEncodeError:
             print out.encode('utf-8', 'replace')
 
+def friends_update(user):
+    sorted_uploads = list(get_sorted_data(user))
+    print_info(sorted_uploads)
+
+def show_stat(user):
+    #friends = {}
+    for friend in user.friends:
+        print friend.fullname, friend.username, friend.id,
+        likes = 0
+        favs = 0
+        for count, photo in enumerate(friend.photos):
+            print photo.__dict__
+            if photo.voted: #XX+TODO: must use auth...
+                likes += 1
+            if photo.favorited:
+                favs += 1
+        print "- %d photos (%d fav, %d like)" % (count, favs, likes)
+        return
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('username')
+    parser.add_argument('-s', '--friends-stats',
+        dest='stat', action='store_true', help='show following stats')
+    _a.VERIFY_URL = "http://verify-oauth.herokuapp.com/"
+    args = parser.parse_args()
     _f = _fh.FiveHundredPx(_a.get_consumer_key(),
                            _a.get_consumer_secret(),
                            _a.get_verify_url())
-    username = sys.argv[1].decode('utf-8')
-    me = User(username=username)
-    sorted_uploads = list(get_sorted_data(me))
-    print_info(sorted_uploads)
-        
+    username = args.username.decode('utf-8')
+    me = User(username=username, authorize=True)
+    if args.stat:
+        show_stat(me)
+    else:
+        friends_update(me)
 
-##############################################
-sys.exit()
-if 0:
-    __t = []
-    #class
-    for i in range(10):
-        __t.append(time.localtime())
-        sleep(1)
-    
-    me.friends = 8
-
-
-
-"""
-print type(me), dir(me), me.id
-print "------"
-print type(f), dir(f)
-
-for i in me.friends:
-    print i.fullname, i.username, i.id, i.domain, dir(i)
-    break
-
-if 0:
-    for p in sorted((x.created_at for x in i.photos), reverse=True, key=lambda s:get_time(s)):
-        print p
-        break
-    break
-    for p in i.photos:
-        print p, p.created_at, p.id
-    break
-
-print list(f.get_user_friends(username))
-print type(me), len(me)
-print dir(f)
-"""
