@@ -3,13 +3,11 @@
 import argparse
 import operator
 import re
+import os
 import sys
 import time
 import urlparse
-import fhp.api.five_hundred_px as _fh
-import fhp.helpers.authentication as _a
-from fhp.models.user import User
-from fhp.models.photo import Photo
+# Pxmagix import deferred, take a look in __main__
 
 _TREG = re.compile('^(\d+)-(\d+)-(\d+).*?(\d+):(\d+):(\d+).*')
 _URL = 'http://500px.com/'
@@ -99,15 +97,29 @@ if __name__ == '__main__':
     parser.add_argument('username')
     parser.add_argument('-s', '--friends-stats',
         dest='stat', action='store_true', help='show following stats')
-    _a.VERIFY_URL = "http://verify-oauth.herokuapp.com/"
+    parser.add_argument('-p', '--pxmagic path',
+                        dest='pxpath',
+                        default=os.path.join(
+                            os.path.abspath(os.path.dirname(sys.argv[0])),
+                            'PxMagic'),
+                        help='PxMagic package path, default to %(default)s')
+
     args = parser.parse_args()
+    sys.path.append(args.pxpath)
+    import fhp.api.five_hundred_px as _fh
+    import fhp.helpers.authentication as _a
+    from fhp.models.user import User
+    from fhp.models.photo import Photo
+
+    _a.VERIFY_URL = "http://verify-oauth.herokuapp.com/"
     _f = _fh.FiveHundredPx(_a.get_consumer_key(),
                            _a.get_consumer_secret(),
                            _a.get_verify_url())
     username = args.username.decode('utf-8')
-    me = User(username=username, authorize=True)
+    me = User(username=username) #, authorize=True)
     if args.stat:
         show_stat(me)
     else:
         friends_update(me)
+
 
